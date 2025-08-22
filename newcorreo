@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xoconodo - Editor v3.6 (Full Fixed)</title>
+    <link rel="stylesheet" href="https://unpkg.com/reactflow@latest/dist/style.css" />
+    <style>
+        :root {
+            --primary-color: #FF0066;
+            --primary-color-dark: #e6005c;
+            --secondary-color: #333333;
+            --border-color: #e2e8f0;
+            --background-color: #f8fafc;
+            --panel-background-color: #ffffff;
+            --text-color-primary: #1a202c;
+            --text-color-secondary: #4a5568;
+            --button-primary-bg: #FF0066;
+            --button-primary-hover-bg: #e6005c;
+            --button-secondary-bg: #edf2f7;
+            --button-secondary-hover-bg: #e2e8f0;
+            --input-border-color: #cbd5e0;
+            --input-focus-color: #FF0066;
+            --dots-color: #d1d5db;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-color-primary);
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- Layout Principal --- */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background-color: var(--panel-background-color);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .header-group { display: flex; align-items: center; gap: 12px; }
+        .app-logo { font-weight: bold; font-size: 24px; color: var(--primary-color); }
+        .app-body {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .palette-panel {
+            width: 240px;
+            background-color: var(--panel-background-color);
+            border-right: 1px solid var(--border-color);
+            padding: 12px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            z-index: 5;
+        }
+        .main-content-wrapper {
+            flex-grow: 1;
+            position: relative;
+        }
+        #reactflow-root {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .inspector-panel {
+            width: 300px;
+            background-color: var(--panel-background-color);
+            border-left: 1px solid var(--border-color);
+            padding: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            z-index: 5;
+        }
+
+        /* --- Estilos de Componentes UI --- */
+        .btn {
+            display: flex; align-items: center; justify-content: center;
+            padding: 8px 12px; border-radius: 6px;
+            border: 1px solid transparent; cursor: pointer;
+            font-size: 14px; font-weight: 500;
+            gap: 6px; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn svg { stroke: currentColor; width: 16px; height: 16px; }
+        .btn.btn-primary { background-color: var(--button-primary-bg); color: white; border-color: var(--button-primary-bg); }
+        .btn.btn-primary:hover:not(:disabled) { background-color: var(--button-primary-hover-bg); }
+        .btn.btn-secondary { background-color: var(--button-secondary-bg); color: var(--text-color-primary); border-color: var(--border-color); }
+        .btn.btn-secondary:hover:not(:disabled) { background-color: var(--button-secondary-hover-bg); }
+        .btn.active { background-color: var(--primary-color); color: white; }
+
+        /* Paleta de Nodos (Izquierda) */
+        .palette-accordion details { margin-bottom: 8px; }
+        .palette-accordion summary {
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .palette-accordion summary::before { content: '▸'; display: inline-block; transition: transform 0.2s; }
+        .palette-accordion details[open] summary::before { transform: rotate(90deg); }
+        .palette-accordion summary:hover { background-color: var(--button-secondary-bg); }
+        .palette-content { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 8px 0 8px 16px; }
+        .palette-button {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; padding: 8px;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px; text-align: left;
+            font-size: 13px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .palette-button:hover { background-color: var(--button-secondary-bg); border-color: #b9c5d6; }
+        .palette-button svg { width: 16px; height: 16px; color: var(--text-color-secondary); }
+
+        /* Panel Inspector (Derecha) */
+        .inspector-placeholder { text-align: center; margin-top: 20px; color: var(--text-color-secondary); font-size: 14px; padding: 0 10px;}
+        .inspector-header { margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+        .inspector-title { font-size: 18px; font-weight: 600; }
+        .inspector-subtitle { font-size: 12px; color: var(--text-color-secondary); }
+        .inspector-group { margin-bottom: 20px; }
+        .inspector-group-label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; }
+        .inspector-control-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .inspector-control-row label { font-size: 13px; color: var(--text-color-secondary); flex-shrink: 0; }
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--input-border-color);
+            border-radius: 4px; font-size: 13px;
+            box-sizing: border-box; transition: all 0.2s;
+        }
+        .form-textarea { resize: vertical; min-height: 80px; font-family: 'Fira Code', monospace; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--input-focus-color);
+            box-shadow: 0 0 0 2px rgba(255, 0, 102, 0.2);
+        }
+        .form-input[type="color"] { padding: 2px; height: 36px; }
+        .button-group { display: flex; gap: 4px; }
+        .button-group .btn { flex-grow: 1; padding: 6px; }
+        .color-palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+        .color-swatch {
+            width: 32px; height: 32px; border-radius: 4px; cursor: pointer;
+            border: 2px solid transparent; box-sizing: border-box;
+            transition: all 0.2s;
+        }
+        .color-swatch.selected { border-color: var(--input-focus-color); transform: scale(1.1); }
+        .range-value { font-size: 12px; color: var(--text-color-secondary); width: 30px; text-align: right; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .checkbox-row label { font-size: 13px; }
+        /* Switch styles */
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* --- Estilos ReactFlow y Nodos --- */
+        .react-flow__attribution { display: none !important; }
+        .base-node {
+            padding: 10px 15px; border-radius: 6px; min-width: 150px; min-height: 40px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: 500; font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: grab; white-space: pre-wrap;
+            background-color: white;
+            transition: all 0.2s ease;
+            border-style: solid; /* Default style */
+        }
+        .custom-node.circle { border-radius: 50%; width: 80px; height: 80px; padding: 5px; } 
+        .custom-node.diamond { width: 100px; height: 100px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); padding: 15px; }
+
+        .react-flow__node-selected .base-node {
+            box-shadow: 0 0 0 2px var(--primary-color), 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .node-label-input {
+            width: 90%; padding: 4px 6px; border: 1px solid var(--primary-color); border-radius: 3px;
+            font-family: inherit; font-size: inherit; text-align: inherit; background-color: rgba(255, 255, 255, 0.9);
+            box-sizing: border-box; resize: none; overflow: hidden; margin-top: 5px;
+        }
+        .edge-label-input {
+            padding: 4px 8px; font-size: 12px; border: 1px solid var(--primary-color); border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.95); color: #333; text-align: center;
+            width: 160px; resize: none; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+        .node-handle {
+            width: 10px; height: 10px; border: 2px solid white; box-shadow: 0 0 0 1px var(--primary-color);
+            border-radius: 50%; z-index: 10; background-color: var(--primary-color); opacity: 0.7;
+        }
+        .base-node:hover .node-handle, .react-flow__node-selected .node-handle { opacity: 1; }
+        .functional-node-content { font-size: 11px; color: #666; margin-top: 4px; max-width: 200px; word-break: break-all; }
+        .image-node-content, .web-viewer-content, .youtube-node-content { background-color: white; box-shadow: none; padding: 0; position: relative; overflow: hidden; cursor: grab; }
+        .image-node-content img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none; }
+        .react-flow__node-selected .image-node-content, .react-flow__node-selected .web-viewer-content, .react-flow__node-selected .youtube-node-content { box-shadow: 0 0 0 2px var(--primary-color); }
+        .resize-handle { position: absolute; width: 10px; height: 10px; background-color: var(--primary-color); border: 1px solid white; border-radius: 50%; cursor: nwse-resize; right: -5px; bottom: -5px; z-index: 20; opacity: 0; }
+        .react-flow__node-selected .resize-handle { opacity: 1; }
+        .web-viewer-content iframe, .youtube-node-content iframe { width: 100%; height: 100%; border: none; }
+        .functional-node-button {
+            background-color: var(--primary-color); color: white; border: none; padding: 6px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 8px; width: 90%;
+        }
+        .functional-node-button:hover { background-color: var(--primary-color-dark); }
+        .functional-node-button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* --- Estilos para Nodo de Notas --- */
+        .note-node-content {
+            font-family: 'Georgia', serif; font-size: 14px;
+            line-height: 1.6; color: #333;
+            width: 100%; height: 100%;
+        }
+        .note-node-content h1, .note-node-content h2, .note-node-content h3 {
+            margin-top: 0; border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 5px;
+        }
+        .note-node-content ul, .note-node-content ol { padding-left: 20px; }
+        .note-node-content img { max-width: 100%; height: auto; border-radius: 4px; }
+        
+        /* --- Estilos para HTTP Request Viewer --- */
+        .http-viewer-container {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            font-size: 12px;
+        }
+        .http-viewer-header {
+            padding: 4px 8px;
+            font-weight: bold;
+            color: white;
+            border-radius: 4px 4px 0 0;
+            flex-shrink: 0;
+        }
+        .status-success { background-color: #28a745; }
+        .status-redirect { background-color: #fdba74; }
+        .status-error { background-color: #dc3545; }
+        .status-default { background-color: #6c757d; }
+        .http-viewer-section {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+        }
+        .http-viewer-section h4 {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+        }
+        .http-viewer-headers-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .http-viewer-headers-table td {
+            padding: 2px 4px;
+            border: 1px solid #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            word-break: break-all;
+        }
+        .http-viewer-body {
+            flex-grow: 1;
+            padding: 8px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: 'Fira Code', monospace;
+            overflow-y: auto;
+        }
+
+
+        /* --- Notificaciones Toast --- */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        .toast {
+            background-color: #333; color: white; padding: 12px 20px; border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s; display: flex; align-items: center; gap: 10px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div id="app-container">Cargando Editor Xoconodo v3.6...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/reactflow@latest/dist/umd/index.js"></script>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!React || !ReactDOM || !ReactFlow) {
+                document.getElementById('app-container').innerText = "Error crítico: No se pudieron cargar las librerías de React o ReactFlow...";
+                return;
+            }
+
+            const {
+                ReactFlowProvider, Background, Handle, Panel, MiniMap, Controls, EdgeLabelRenderer, getBezierPath,
+                useNodesState, useEdgesState, useReactFlow, addEdge,
+                MarkerType, Position
+            } = ReactFlow;
+            const ReactFlowComponent = ReactFlow.default;
+
+            // --- Definiciones y creación de nodos ---
+            let nodeIdCounter = 0;
+            const createNewNode = (id, position, data = {}) => ({ id: id.toString(), type: 'customNode', position, data: { label: data.label || `Node ${id}`, shape: data.shape || 'rect', color: data.color || '#ffffff', borderColor: data.borderColor || '#FF0066', borderStyle: data.borderStyle || 'solid', borderWidth: 2, textAlign: 'center', isCompressed: false, compressedTitle: 'Nodo de Texto', outputValue: data.label || `Node ${id}` } });
+            const createNewImageNode = (id, position, data = {}) => ({ id: id.toString(), type: 'imageNode', position, data: { src: data.src || 'https://via.placeholder.com/150', width: data.width || 150, height: data.height || 100, isCompressed: false, compressedTitle: 'Imagen', borderColor: '#cccccc', borderWidth: 1 }, style: { width: data.width || 150, height: data.height || 100 } });
+            const createNewYoutubeNode = (id, position, data = {}) => ({ id: id.toString(), type: 'youtubeNode', position, data: { videoId: data.videoId || '52kUv5iMV5M', width: data.width || 320, height: data.height || 180, isCompressed: false, compressedTitle: 'Video de YouTube' }, style: { width: data.width || 320, height: data.height || 180 } });
+            const createNewNoteNode = (id, position, data = {}) => ({ id: id.toString(), type: 'noteNode', position, data: { content: data.content || '# Recordatorio\n\n- Revisar la conexión de la API.\n- ![logo](https://xocostudio.com/assets/images/xocostudio-354x128.png)', backgroundColor: data.backgroundColor || '#FFF8DC', width: 250, height: 150 }, style: { width: 250, height: 150 } });
+            const createNewHttpRequestNode = (id, position, data = {}) => ({ id: id.toString(), type: 'httpRequestNode', position, data: { label: 'HTTP Request', method: 'GET', url: 'https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true', headers: '{\n  "Content-Type": "application/json"\n}', body: '', responseFormat: 'json', status: 'Ready', outputValue: null, isCompressed: false, compressedTitle: 'HTTP Request' } });
+            const createNewHttpRequestViewerNode = (id, position, data = {}) => ({ id: id.toString(), type: 'httpRequestViewerNode', position, data: { label: 'HTTP Request Viewer', inputValue: null, outputValue: null, showHeader: true, showHeaders: true, bodyFormat: 'json', width: 350, height: 400, isCompressed: false, compressedTitle: 'HTTP Viewer' }, style: { width: 350, height: 400 } });
+            const createIfNode = (id, position, data = {}) => ({ id: id.toString(), type: 'ifNode', position, data: { label: 'IF', inputValue: null, field: 'body.temperature', operator: '>', value: '15', conditionResult: null, outputValueTrue: undefined, outputValueFalse: undefined } });
+            const createSmtpEmailNode = (id, position, data = {}) => ({ id: id.toString(), type: 'smtpEmailNode', position, data: { label: 'Enviar Email (SMTP)', host: 'smtp.gmail.com', port: 587, secure: false, user: 'tu_correo@gmail.com', pass: '', from: 'tu_correo@gmail.com', to: 'destinatario@ejemplo.com', subject: 'Notificación de Clima', body: 'La temperatura actual es {{body.current_weather.temperature}} °C.', status: 'Ready' } });
+            const createWebViewerNode = (id, position, data = {}) => ({ id: id.toString(), type: 'webViewerNode', position, data: { label: 'Web Viewer', inputValue: data.inputValue || '<!-- Conecta un nodo con código HTML aquí -->', width: 300, height: 200, isCompressed: false, compressedTitle: 'Visor Web', sourceMode: 'input', localCode: '<h1>Hola Mundo!</h1>\n<p>Escribe tu código HTML aquí.</p>', sandboxOptions: { allowScripts: true, allowSameOrigin: true, allowForms: true, allowModals: true, allowPopups: true } }, style: { width: 300, height: 200 } });
+            const createConcatenateNode = (id, position, data = {}) => ({ id: id.toString(), type: 'concatenateNode', position, data: { label: 'Concatenar', inputs: {input_0: '', input_1: ''}, outputValue: '', separator: data.separator || '', isCompressed: false, compressedTitle: 'Concatenar' } });
+            const createResultNode = (id, position, data = {}) => ({ id: id.toString(), type: 'resultNode', position, data: { label: 'Resultado', inputValue: '', isCompressed: false, compressedTitle: 'Resultado' } });
+            const createDisplayNode = (id, position, data = {}) => ({ id: id.toString(), type: 'displayNode', position, data: { label: 'Display & Pass', inputValue: '', outputValue: '', isCompressed: false, compressedTitle: 'Display' } });
+            const createDownloadNode = (id, position, data = {}) => ({ id: id.toString(), type: 'downloadNode', position, data: { label: 'Descargar', inputValue: '', filename: data.filename || 'datos.txt', isCompressed: false, compressedTitle: 'Descargar' } });
+            const createCapitalizeNode = (id, position, data = {}) => ({ id: id.toString(), type: 'capitalizeNode', position, data: { label: 'Capitalizar', inputValue: '', outputValue: '', isCompressed: false, compressedTitle: 'Capitalizar' } });
+            const createUppercaseNode = (id, position, data = {}) => ({ id: id.toString(), type: 'uppercaseNode', position, data: { label: 'Mayúsculas', inputValue: '', outputValue: '', isCompressed: false, compressedTitle: 'Mayúsculas' } } );
+            const createLowercaseNode = (id, position, data = {}) => ({ id: id.toString(), type: 'lowercaseNode', position, data: { label: 'Minúsculas', inputValue: '', outputValue: '', isCompressed: false, compressedTitle: 'Minúsculas' } });
+            const createGeminiNode = (id, position, data = {}) => ({ id: id.toString(), type: 'geminiNode', position, data: { label: 'Tarea Gemini', apiKey: data.apiKey || '', inputValue: '', outputValue: '', status: 'Ready', isCompressed: false, compressedTitle: 'Tarea Gemini' } });
+            const createScriptNode = (id, position, data = {}) => ({ id: id.toString(), type: 'scriptNode', position, data: { label: 'Script JS', script: data.script || '// La variable "input" está disponible.\nreturn input.toUpperCase();', inputValue: '', outputValue: '', isCompressed: false, compressedTitle: 'Script JS' } });
+            const createFileAutoRunNode = (id, position, data = {}) => ({ id: id.toString(), type: 'fileAutoRunNode', position, data: { label: 'Auto Run from File', filename: data.filename || 'No file selected', interval: data.interval || 10, isRunning: false, countdown: data.interval || 10, outputValue: '', isCompressed: false, compressedTitle: 'Auto Run' } });
+            let initialNodes = [createNewNode(++nodeIdCounter, { x: window.innerWidth/3, y: window.innerHeight/4 }, {label: 'Escribe tu prompt aquí'})];
+            let initialEdges = [];
+            let initialViewport = { x: 0, y: 0, zoom: 1 };
+            const urlParams = new URLSearchParams(window.location.search);
+            const flowParam = urlParams.get('flow');
+            if (flowParam) { try { const decodedFlow = JSON.parse(atob(decodeURIComponent(flowParam))); if (decodedFlow.nodes && decodedFlow.edges) { initialNodes = decodedFlow.nodes; initialEdges = decodedFlow.edges; initialViewport = decodedFlow.viewport || initialViewport; let maxIdFromNodes = 0; if (initialNodes && initialNodes.length > 0) { maxIdFromNodes = initialNodes.reduce((maxId, node) => Math.max(maxId, parseInt(String(node.id).replace(/[^0-9]/g, '')) || 0), 0); } let maxIdFromEdges = 0; if (initialEdges && initialEdges.length > 0) { maxIdFromEdges = initialEdges.reduce((maxId, edge) => Math.max(maxId, parseInt(String(edge.id).split('-').pop().replace(/[^0-9]/g, '')) || 0), 0); } nodeIdCounter = Math.max(nodeIdCounter, maxIdFromNodes, maxIdFromEdges); } } catch (e) { console.error("Error al cargar el flujo desde la URL:", e); } }
+
+            // --- Componentes ReactFlow ---
+            const CustomNode = ({ id, data }) => { const [isEditing, setIsEditing] = React.useState(false); const [labelText, setLabelText] = React.useState(data.label); const inputRef = React.useRef(null); React.useEffect(() => { setLabelText(data.label); }, [data.label]); const handleDoubleClick = () => { setIsEditing(true); }; const finishEditing = () => { setIsEditing(false); if(labelText !== data.label) { window.onNodeDataChange(id, { label: labelText }); window.recordAction(); }}; const handleChange = (e) => setLabelText(e.target.value); const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { finishEditing(); } else if (e.key === 'Escape') { setLabelText(data.label); finishEditing(); } }; React.useEffect(() => { if (isEditing) inputRef.current?.focus(); }, [isEditing]); const nodeStyle = { background: data.color, borderColor: data.borderColor, borderStyle: data.borderStyle, borderWidth: data.borderStyle === 'none' ? '0px' : `${data.borderWidth || 0}px`, textAlign: data.textAlign || 'center' }; const displayText = data.isCompressed ? data.compressedTitle : data.label; return React.createElement('div', { className: `base-node custom-node ${data.shape || 'rect'}`, style: nodeStyle, onDoubleClick: handleDoubleClick }, isEditing ? React.createElement('textarea', { ref: inputRef, value: labelText, onChange: handleChange, onKeyDown: handleKeyDown, onBlur: finishEditing, className: 'node-label-input', rows: labelText.split('\n').length || 1 }) : displayText, React.createElement(Handle, { type: 'target', position: Position.Top, id: 'top-target', className: 'node-handle' }), React.createElement(Handle, { type: 'source', position: Position.Bottom, id: 'bottom-source', className: 'node-handle' }), React.createElement(Handle, { type: 'target', position: Position.Left, id: 'left-target', className: 'node-handle' }), React.createElement(Handle, { type: 'source', position: Position.Right, id: 'right-source', className: 'node-handle' }) ); };
+            const ImageNode = ({ id, data, selected }) => { const { getNode } = useReactFlow(); const [isResizing, setIsResizing] = React.useState(false); const [initialResizeState, setInitialResizeState] = React.useState(null); const onResizeStart = React.useCallback((e) => { e.preventDefault(); e.stopPropagation(); const node = getNode(id); setIsResizing(true); setInitialResizeState({ mouseX: e.clientX, mouseY: e.clientY, width: node.data.width, height: node.data.height, aspectRatio: node.data.originalWidth / node.data.originalHeight }); }, [id, getNode]); const onResize = React.useCallback((e) => { if (!isResizing || !initialResizeState) return; const dx = e.clientX - initialResizeState.mouseX; let newWidth = initialResizeState.width + dx; newWidth = Math.max(50, newWidth); let newHeight = newWidth / initialResizeState.aspectRatio; window.onNodeDataChange(id, { width: newWidth, height: newHeight }, { width: newWidth, height: newHeight }); }, [isResizing, initialResizeState, id]); const onResizeEnd = React.useCallback(() => { setIsResizing(false); setInitialResizeState(null); if(window.recordAction) window.recordAction(); }, []); React.useEffect(() => { if (isResizing) { document.addEventListener('mousemove', onResize); document.addEventListener('mouseup', onResizeEnd); } else { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); } return () => { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); }; }, [isResizing, onResize, onResizeEnd]); const nodeStyle = data.isCompressed ? {width: 150, height: 40} : { width: data.width, height: data.height, padding: '5px', borderColor: data.borderColor, borderWidth: `${data.borderWidth || 0}px` }; return React.createElement('div', { className: 'base-node', style: nodeStyle }, data.isCompressed ? data.compressedTitle : React.createElement('div', { className: 'image-node-content', style:{width: '100%', height: '100%', border: 'none'} }, React.createElement('img', { src: data.src, alt: 'Image node', draggable: false })), selected && !data.isCompressed && React.createElement('div', { className: 'resize-handle', onMouseDown: onResizeStart }) ); };
+            const YoutubeNodeComponent = ({ id, data, selected }) => { const [isResizing, setIsResizing] = React.useState(false); const [initialResizeState, setInitialResizeState] = React.useState(null); const onResizeStart = React.useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsResizing(true); setInitialResizeState({ mouseX: e.clientX, mouseY: e.clientY, width: data.width, height: data.height }); }, [data.width, data.height]); const onResize = React.useCallback((e) => { if (!isResizing || !initialResizeState) return; const dx = e.clientX - initialResizeState.mouseX; const dy = e.clientY - initialResizeState.mouseY; let newWidth = Math.max(100, initialResizeState.width + dx); let newHeight = Math.max(80, initialResizeState.height + dy); window.onNodeDataChange(id, { width: newWidth, height: newHeight }, { width: newWidth, height: newHeight }); }, [isResizing, initialResizeState, id]); const onResizeEnd = React.useCallback(() => { setIsResizing(false); setInitialResizeState(null); if (window.recordAction) window.recordAction(); }, []); React.useEffect(() => { if (isResizing) { document.addEventListener('mousemove', onResize); document.addEventListener('mouseup', onResizeEnd); } else { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); } return () => { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); }; }, [isResizing, onResize, onResizeEnd]); const nodeStyle = data.isCompressed ? { width: 150, height: 40 } : { padding: '8px', width: data.width, height: data.height, alignItems: 'stretch', justifyContent: 'flex-start', background: '#282828', color: 'white', border: '1px solid #ff0000' }; const videoSrc = `https://www.youtube-nocookie.com/embed/${data.videoId}`; return React.createElement('div', { className: 'base-node', style: nodeStyle }, data.isCompressed ? data.compressedTitle : React.createElement(React.Fragment, null, React.createElement('div', { style: { paddingBottom: '4px', fontWeight: 'bold', flexShrink: 0, textAlign: 'center', background: '#ff0000', margin: '-8px -8px 4px -8px', padding: '4px' } }, 'Video de YouTube'), React.createElement('div', { className: 'youtube-node-content', style: { flexGrow: 1 } }, React.createElement('iframe', { key: data.videoId, src: videoSrc, title: 'YouTube video player', frameBorder: '0', allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture', allowFullScreen: true }))), selected && !data.isCompressed && React.createElement('div', { className: 'resize-handle', onMouseDown: onResizeStart })); };
+            const NoteNodeComponent = ({ id, data, selected }) => { const [isResizing, setIsResizing] = React.useState(false); const [initialResizeState, setInitialResizeState] = React.useState(null); const onResizeStart = React.useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsResizing(true); setInitialResizeState({ mouseX: e.clientX, mouseY: e.clientY, width: data.width, height: data.height }); }, [data.width, data.height]); const onResize = React.useCallback((e) => { if (!isResizing || !initialResizeState) return; const dx = e.clientX - initialResizeState.mouseX; const dy = e.clientY - initialResizeState.mouseY; let newWidth = Math.max(100, initialResizeState.width + dx); let newHeight = Math.max(80, initialResizeState.height + dy); window.onNodeDataChange(id, { width: newWidth, height: newHeight }, { width: newWidth, height: newHeight }); }, [isResizing, initialResizeState, id]); const onResizeEnd = React.useCallback(() => { setIsResizing(false); setInitialResizeState(null); if (window.recordAction) window.recordAction(); }, []); React.useEffect(() => { if (isResizing) { document.addEventListener('mousemove', onResize); document.addEventListener('mouseup', onResizeEnd); } else { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); } return () => { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); }; }, [isResizing, onResize, onResizeEnd]); const renderedHtml = React.useMemo(() => ({ __html: window.marked ? window.marked.parse(data.content) : data.content.replace(/\n/g, '<br />') }), [data.content]); const nodeStyle = { width: data.width, height: data.height, backgroundColor: data.backgroundColor, border: '1px solid #D1D5DB', padding: '10px', boxSizing: 'border-box', overflowY: 'auto', alignItems: 'flex-start', justifyContent: 'flex-start', textAlign: 'left' }; return React.createElement('div', { className: 'base-node', style: nodeStyle }, React.createElement('div', { className: 'note-node-content', dangerouslySetInnerHTML: renderedHtml }), selected && React.createElement('div', { className: 'resize-handle', onMouseDown: onResizeStart }));};
+            const HttpRequestNodeComponent = ({ id, data }) => { const handleRequest = async () => { window.onNodeDataChange(id, { status: 'Sending...', outputValue: null }); try { let headers = {}; try { headers = JSON.parse(data.headers || '{}'); } catch (e) { throw new Error('Headers JSON no es válido.'); } const options = { method: data.method, headers: headers, signal: AbortSignal.timeout((data.timeout || 10) * 1000) }; if (['POST', 'PUT', 'PATCH'].includes(data.method)) { options.body = data.body; } const response = await fetch(data.url, options); const responseBody = data.responseFormat === 'json' ? await response.json() : await response.text(); const result = { status: response.status, statusText: response.statusText, headers: Object.fromEntries(response.headers.entries()), body: responseBody }; if (!response.ok) { throw new Error(`HTTP error ${response.status}: ${response.statusText}`); } window.onNodeDataChange(id, { status: `Success: ${response.status}`, outputValue: result }); } catch (error) { console.error('HTTP Request Failed:', error); window.onNodeDataChange(id, { status: `Error: ${error.message}`, outputValue: { error: error.message } }); } window.recordAction(); }; const children = [React.createElement('button', { key: 'btn', onClick: handleRequest, className: 'functional-node-button' }, 'Enviar Petición'), React.createElement(Handle, { key: 'h_in', type: "target", position: Position.Left, id: "input", className: 'node-handle' }), React.createElement(Handle, { key: 'h_out', type: "source", position: Position.Right, id: "output", className: 'node-handle' })]; return React.createElement(FunctionalNode, { data, borderColor: '#0284c7', content: `[${data.method}] ${data.status}`, children }); };
+            const HttpRequestViewerNodeComponent = ({ id, data, selected }) => { const [isResizing, setIsResizing] = React.useState(false); const [initialResizeState, setInitialResizeState] = React.useState(null); const onResizeStart = React.useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsResizing(true); setInitialResizeState({ mouseX: e.clientX, mouseY: e.clientY, width: data.width, height: data.height }); }, [data.width, data.height]); const onResize = React.useCallback((e) => { if (!isResizing || !initialResizeState) return; const dx = e.clientX - initialResizeState.mouseX; const dy = e.clientY - initialResizeState.mouseY; let newWidth = Math.max(200, initialResizeState.width + dx); let newHeight = Math.max(150, initialResizeState.height + dy); window.onNodeDataChange(id, { width: newWidth, height: newHeight }, { width: newWidth, height: newHeight }); }, [isResizing, initialResizeState, id]); const onResizeEnd = React.useCallback(() => { setIsResizing(false); setInitialResizeState(null); if (window.recordAction) window.recordAction(); }, []); React.useEffect(() => { if (isResizing) { document.addEventListener('mousemove', onResize); document.addEventListener('mouseup', onResizeEnd); } else { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); } return () => { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); }; }, [isResizing, onResize, onResizeEnd]); const getStatusClass = (status) => { if (status >= 200 && status < 300) return 'status-success'; if (status >= 300 && status < 400) return 'status-redirect'; if (status >= 400) return 'status-error'; return 'status-default'; }; const { inputValue } = data; const nodeStyle = { padding: 0, width: data.width, height: data.height, border: `1px solid ${'#0ea5e9'}`, alignItems: 'stretch', justifyContent: 'flex-start', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'}; if (data.isCompressed) { return React.createElement('div', {className: 'base-node', style: {borderColor: '#0ea5e9'}}, data.compressedTitle, React.createElement(Handle, {type: "target", position: Position.Left, id: "input"}), React.createElement(Handle, {type: "source", position: Position.Right, id: "output"})); } return React.createElement('div', {className: 'base-node', style: nodeStyle}, React.createElement('div', {className: 'http-viewer-container'}, inputValue && inputValue.status ? React.createElement(React.Fragment, null, data.showHeader && React.createElement('div', {className: `http-viewer-header ${getStatusClass(inputValue.status)}`}, `${inputValue.status} ${inputValue.statusText}`), data.showHeaders && React.createElement('div', {className: 'http-viewer-section'}, React.createElement('h4', null, 'Headers'), React.createElement('table', {className: 'http-viewer-headers-table'}, React.createElement('tbody', null, Object.entries(inputValue.headers || {}).map(([key, value]) => React.createElement('tr', {key}, React.createElement('td', null, key), React.createElement('td', null, value)))))), React.createElement('pre', {className: 'http-viewer-body'}, data.bodyFormat === 'json' ? JSON.stringify(inputValue.body, null, 2) : String(inputValue.body))) : React.createElement('div', {style: {padding: '10px'}}, 'Sin datos')), selected && React.createElement('div', {className: 'resize-handle', onMouseDown: onResizeStart}), React.createElement(Handle, {type: "target", position: Position.Left, id: "input", className: 'node-handle'}), React.createElement(Handle, {type: "source", position: Position.Right, id: "output", className: 'node-handle'})); };
+            const IfNodeComponent = ({ data }) => { const conditionText = `${data.field || ''} ${data.operator || ''} ${data.value || ''}`; return React.createElement('div', { className: 'base-node', style: { minWidth: 200, borderColor: '#6b7280' } }, React.createElement('strong', null, 'IF'), React.createElement('div', { className: 'functional-node-content', style: { fontStyle: 'italic' } }, conditionText), React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' }), React.createElement('div', { style: { marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '100%', gap: '10px' } }, React.createElement('div', null, React.createElement('span', { style: { fontSize: '11px', marginRight: '5px' } }, 'true'), React.createElement(Handle, { type: "source", position: Position.Right, id: "true-output", className: 'node-handle', style: { position: 'relative', transform: 'none', right: 0, top: 0, background: '#22c55e' } })), React.createElement('div', null, React.createElement('span', { style: { fontSize: '11px', marginRight: '5px' } }, 'false'), React.createElement(Handle, { type: "source", position: Position.Right, id: "false-output", className: 'node-handle', style: { position: 'relative', transform: 'none', right: 0, top: 0, background: '#ef4444' } })))); };
+            const SmtpEmailNodeComponent = ({ id, data }) => { const handleSimulateSend = () => { window.onNodeDataChange(id, { status: 'Simulando...' }); setTimeout(() => { alert("¡Simulación Exitosa!\n\nEn un entorno real, esta configuración se usaría en un servidor (backend) para enviar el email. El envío directo desde el navegador no es posible por seguridad."); window.onNodeDataChange(id, { status: 'Simulado con Éxito' }); window.recordAction(); }, 500); }; const children = [React.createElement('button', { key: 'btn', onClick: handleSimulateSend, className: 'functional-node-button' }, 'Simular Envío'), React.createElement(Handle, { key: 'h_in', type: 'target', position: Position.Left, id: 'input', className: 'node-handle' }), React.createElement(Handle, { key: 'h_out', type: 'source', position: Position.Right, id: 'output', className: 'node-handle' })]; return React.createElement(FunctionalNode, { data, borderColor: '#f97316', content: `Para: ${data.to}`, children }); };
+            const WebViewerNodeComponent = ({ id, data, selected }) => { const [iframeUrl, setIframeUrl] = React.useState(null); const [isLoading, setIsLoading] = React.useState(false); const [isResizing, setIsResizing] = React.useState(false); const [initialResizeState, setInitialResizeState] = React.useState(null); const onResizeStart = React.useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsResizing(true); setInitialResizeState({ mouseX: e.clientX, mouseY: e.clientY, width: data.width, height: data.height }); }, [data.width, data.height]); const onResize = React.useCallback((e) => { if (!isResizing || !initialResizeState) return; const dx = e.clientX - initialResizeState.mouseX; const dy = e.clientY - initialResizeState.mouseY; let newWidth = Math.max(100, initialResizeState.width + dx); let newHeight = Math.max(80, initialResizeState.height + dy); window.onNodeDataChange(id, { width: newWidth, height: newHeight }, { width: newWidth, height: newHeight }); }, [isResizing, initialResizeState, id]); const onResizeEnd = React.useCallback(() => { setIsResizing(false); setInitialResizeState(null); if (window.recordAction) window.recordAction(); }, []); React.useEffect(() => { if (isResizing) { document.addEventListener('mousemove', onResize); document.addEventListener('mouseup', onResizeEnd); } else { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); } return () => { document.removeEventListener('mousemove', onResize); document.removeEventListener('mouseup', onResizeEnd); }; }, [isResizing, onResize, onResizeEnd]); React.useEffect(() => { let currentUrl = null; const processHtml = async () => { const sourceHtml = data.sourceMode === 'local' ? data.localCode : data.inputValue; if (!sourceHtml || typeof sourceHtml !== 'string') { setIframeUrl('about:blank'); return; } setIsLoading(true); try { const parser = new DOMParser(); const doc = parser.parseFromString(sourceHtml, 'text/html'); const externalScripts = Array.from(doc.querySelectorAll('script[src]')); const scriptPromises = externalScripts.map(tag => fetch(tag.src).then(res => { if (!res.ok) throw new Error(`Fallo al cargar script: ${res.status} ${res.statusText} (${tag.src})`); return res.text(); }).then(content => ({ tag, content }))); const loadedScripts = await Promise.all(scriptPromises); loadedScripts.forEach(({ tag, content }) => { const newScript = doc.createElement('script'); newScript.textContent = content; tag.parentNode.replaceChild(newScript, tag); }); let head = doc.querySelector('head'); if (!head) { head = doc.createElement('head'); doc.documentElement.insertBefore(head, doc.body); } if (!head.querySelector('meta[charset]')) { const meta = doc.createElement('meta'); meta.setAttribute('charset', 'UTF-8'); head.prepend(meta); } const finalHtml = doc.documentElement.outerHTML; const blob = new Blob([finalHtml], { type: 'text/html' }); currentUrl = URL.createObjectURL(blob); setIframeUrl(currentUrl); } catch (error) { console.error("Error procesando HTML para Web Viewer:", error); const errorHtml = `<div style="padding: 10px; color: red; font-family: sans-serif;"><b>Error:</b> ${error.message}</div>`; const errorBlob = new Blob([errorHtml], { type: 'text/html' }); currentUrl = URL.createObjectURL(errorBlob); setIframeUrl(currentUrl); } finally { setIsLoading(false); } }; processHtml(); return () => { if (currentUrl) URL.revokeObjectURL(currentUrl); }; }, [data.inputValue, data.sourceMode, data.localCode]); 
+            const sandboxString = React.useMemo(() => Object.entries(data.sandboxOptions || {}).filter(([_, value]) => value).map(([key]) => key.replace(/([A-Z])/g, '-$1').toLowerCase()).join(' '), [data.sandboxOptions]); 
+            const style = data.isCompressed ? { width: 150, height: 40, padding: '10px 15px' } : { padding: '8px', width: data.width, height: data.height, alignItems: 'stretch', justifyContent: 'flex-start' }; return React.createElement('div', { className: 'base-node', style: {...style, borderColor: '#3b82f6'}}, data.isCompressed ? data.compressedTitle : React.createElement(React.Fragment, null, React.createElement('div', { style: { paddingBottom: '4px', fontWeight: 'bold', flexShrink: 0, textAlign: 'center' } }, data.label), React.createElement('div', { className: 'web-viewer-content', style: { flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, isLoading ? 'Cargando...' : React.createElement('iframe', { key: iframeUrl, src: iframeUrl || 'about:blank', title: 'Web Viewer', sandbox: sandboxString }))), selected && !data.isCompressed && React.createElement('div', { className: 'resize-handle', onMouseDown: onResizeStart }), React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' })); };
+            const FunctionalNode = ({data, borderColor, children, content}) => { let displayValue = content || data.inputValue; if (typeof displayValue === 'object' && displayValue !== null) { try { displayValue = JSON.stringify(displayValue, null, 2); } catch (e) { displayValue = "Error: Objeto circular no se puede mostrar."; } } if (data.isCompressed) { return React.createElement('div', { className: 'base-node', style: {borderColor}}, data.compressedTitle, children); } return React.createElement('div', { className: 'base-node', style: {borderColor}}, data.label, React.createElement('div', {className: 'functional-node-content'}, displayValue || '(Vacío)'), children); };
+            const ConcatenateNodeComponent = ({ data }) => { const handles = [React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' }), ...Array.from({ length: data.numInputs || 2 }, (_, i) => React.createElement(Handle, { key: `input_${i}`, type: "target", position: Position.Left, id: `input_${i}`, style: { top: `${(i + 1) * 100 / ((data.numInputs || 2) + 1)}%` }, className: 'node-handle' }))]; return React.createElement(FunctionalNode, { data, borderColor: '#4A90E2', content: `Separador: "${data.separator}"`, children: handles }); };
+            const ResultNodeComponent = ({ data }) => React.createElement(FunctionalNode, {data, borderColor: '#50E3C2'}, React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' }) );
+            const DisplayNodeComponent = ({ data }) => React.createElement(FunctionalNode, {data, borderColor: '#9013FE'}, React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' }), React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' }));
+            const DownloadNodeComponent = ({ data }) => { const handleDownload = () => { let downloadContent = data.inputValue || ''; if(typeof downloadContent === 'object' && downloadContent !== null) { downloadContent = JSON.stringify(downloadContent, null, 2); } const blob = new Blob([downloadContent], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = data.filename || 'datos.txt'; a.click(); URL.revokeObjectURL(url); }; const children = [React.createElement('button', { key: 'btn', onClick: handleDownload, className: 'functional-node-button' }, 'Descargar'), React.createElement(Handle, { key: 'h', type: "target", position: Position.Left, id: "input", className: 'node-handle' })]; return React.createElement(FunctionalNode, { data, borderColor: '#F5A623', content: data.filename, children }); };
+            const TextTransformNodeComponent = ({ data }) => React.createElement(FunctionalNode, {data, borderColor: '#7ED321', content: `Salida: ${(data.outputValue || '').substring(0,20)}...`}, React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' }), React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' }) );
+            const CapitalizeNodeComponent = (props) => React.createElement(TextTransformNodeComponent, props); const UppercaseNodeComponent = (props) => React.createElement(TextTransformNodeComponent, props); const LowercaseNodeComponent = (props) => React.createElement(TextTransformNodeComponent, props);
+            const GeminiNodeComponent = ({ id, data }) => {
+                const handleExecuteTask = async () => {
+                    if (!data.apiKey || !data.inputValue) {
+                        window.setToast({ message: 'Falta API Key o prompt de entrada.', type: 'error' });
+                        return;
+                    }
+                    window.onNodeDataChange(id, { status: 'Procesando...', outputValue: '' });
+                    const API_KEY = data.apiKey;
+                    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+                    try {
+                        const response = await fetch(API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: data.inputValue }] }] })
+                        });
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error?.message || 'Error en la respuesta de la API.');
+                        }
+                        const responseData = await response.json();
+                        let resultText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || 'No se recibió una respuesta válida.';
+                        resultText = resultText.replace(/\$\s*\\boxed{([^}]*)}\s*\$/g, '$1').replace(/\\\[|\\\]|\$|\*|`/g, '').trim();
+                        window.onNodeDataChange(id, { status: 'Success', outputValue: resultText });
+                        window.recordAction();
+                    } catch (error) {
+                        console.error('Fallo al ejecutar la tarea Gemini:', error);
+                        window.onNodeDataChange(id, { status: `Error: ${error.message}`, outputValue: '' });
+                    }
+                };
+                const isButtonDisabled = data.status === 'Procesando...';
+                const children = [
+                    React.createElement('button', {key:'btn', onClick: handleExecuteTask, className: 'functional-node-button', disabled: isButtonDisabled }, 'Ejecutar'),
+                    React.createElement(Handle, {key:'h_in', type: "target", position: Position.Left, id: "input", className: 'node-handle' }), 
+                    React.createElement(Handle, { key:'h_out', type: "source", position: Position.Right, id: "output", className: 'node-handle' })
+                ];
+                return React.createElement(FunctionalNode, {data, borderColor: '#4C8CF5', content: `Estado: ${data.status}`, children });
+            };
+            const ScriptNodeComponent = ({ data }) => React.createElement(FunctionalNode, {data, borderColor: '#E83E8C', content: `Salida: ${String(data.outputValue).substring(0, 30)}...`}, React.createElement(Handle, { type: "target", position: Position.Left, id: "input", className: 'node-handle' }), React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' }) );
+            
+            const FileAutoRunNodeComponent = ({ id, data }) => {
+                const fileInputRef = React.useRef(null);
+                const timerIdRef = React.useRef(null);
+                const handleFileChange = (event) => {
+                    const file = event.target.files[0];
+                    if (file && file.type === 'text/plain') {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const content = e.target.result;
+                            window.onNodeDataChange(id, { filename: file.name, outputValue: content });
+                            window.recordAction();
+                        };
+                        reader.readAsText(file);
+                    } else {
+                        window.setToast({ message: 'Por favor, selecciona un archivo .txt', type: 'error' });
+                    }
+                };
+                const handleIntervalChange = (event) => {
+                    const newInterval = Math.max(1, parseInt(event.target.value, 10) || 10);
+                    window.onNodeDataChange(id, { interval: newInterval });
+                };
+                const handleToggleAutoRun = () => {
+                    if (data.filename === 'No file selected' && !data.isRunning) {
+                        window.setToast({ message: 'Carga un archivo antes de iniciar.', type: 'error' });
+                        return;
+                    }
+                    window.onNodeDataChange(id, { isRunning: !data.isRunning });
+                    window.recordAction();
+                };
+                React.useEffect(() => {
+                    if (data.isRunning) {
+                        if (window.handleRunFlow) window.handleRunFlow(false);
+                        timerIdRef.current = setInterval(() => {
+                            if (window.handleRunFlow) {
+                                window.handleRunFlow(false);
+                            }
+                        }, data.interval * 1000);
+                    }
+                    return () => {
+                        clearInterval(timerIdRef.current);
+                    };
+                }, [data.isRunning, data.interval]);
+
+                if (data.isCompressed) {
+                    return React.createElement('div', { className: 'base-node', style: { borderColor: '#2F855A' } },
+                        data.compressedTitle,
+                        React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' })
+                    );
+                }
+
+                return React.createElement('div', { className: 'base-node', style: { borderColor: '#2F855A', minWidth: '220px' } },
+                    React.createElement('div', { style: { fontWeight: 'bold' } }, data.label),
+                    React.createElement('div', { className: 'functional-node-content', style: { fontSize: '11px', fontStyle: 'italic', color: '#666', padding: '4px 0' } }, data.filename),
+                    React.createElement('input', { type: 'file', accept: '.txt', ref: fileInputRef, style: { display: 'none' }, onChange: handleFileChange }),
+                    React.createElement('button', { onClick: () => fileInputRef.current?.click(), className: 'functional-node-button' }, 'Cargar Archivo (.txt)'),
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '90%', margin: '8px 0' } },
+                        React.createElement('label', { htmlFor: `interval-${id}`, style: { fontSize: '12px' } }, 'Intervalo:'),
+                        React.createElement('input', { type: 'number', id: `interval-${id}`, value: data.interval, onChange: handleIntervalChange, onBlur: window.recordAction, disabled: data.isRunning, style: { width: '60px', padding: '4px' } }), 's'
+                    ),
+                    React.createElement('button', { onClick: handleToggleAutoRun, className: 'functional-node-button', style: { backgroundColor: data.isRunning ? '#D32F2F' : '#38A169' } }, data.isRunning ? 'Detener' : 'Iniciar'),
+                    data.isRunning && React.createElement('div', { style: { fontSize: '11px', marginTop: '8px' } }, `Próx. ejecución: ${data.countdown}s`),
+                    React.createElement(Handle, { type: "source", position: Position.Right, id: "output", className: 'node-handle' })
+                );
+            };
+
+            const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, data, markerEnd, label }) => {
+                const { setEdges } = useReactFlow();
+                const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+                const [isEditing, setIsEditing] = React.useState(false);
+                const [edgeLabel, setEdgeLabel] = React.useState(label || '');
+                const inputRef = React.useRef(null);
+                const onEdgeDoubleClick = (event) => { event.stopPropagation(); setIsEditing(true); };
+                const onLabelChange = (evt) => setEdgeLabel(evt.target.value);
+                const onLabelSave = () => {
+                    setEdges((es) => es.map((edge) => (edge.id === id ? { ...edge, label: edgeLabel } : edge)));
+                    setIsEditing(false);
+                    if (window.recordAction) {
+                        window.recordAction();
+                    }
+                };
+                const onLabelKeyDown = (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        onLabelSave();
+                        event.preventDefault();
+                    } else if (event.key === 'Escape') {
+                        setEdgeLabel(label || '');
+                        setIsEditing(false);
+                    }
+                };
+                React.useEffect(() => { if (isEditing) { inputRef.current?.focus(); inputRef.current?.select();} }, [isEditing]);
+
+                const labelStyle = {
+                    position: 'absolute',
+                    transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    padding: '4px 8px',
+                    borderRadius: '5px',
+                    fontSize: '12px',
+                    pointerEvents: 'all',
+                    maxWidth: '180px',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                };
+
+                return React.createElement(React.Fragment, null,
+                    React.createElement('path', { id, style, className: 'react-flow__edge-path', d: edgePath, markerEnd }),
+                    React.createElement(EdgeLabelRenderer, null, 
+                        isEditing ? 
+                            React.createElement('div', { style: { position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: 'all' }, className: 'nodrag nopan' }, 
+                                React.createElement('textarea', { ref: inputRef, value: edgeLabel, onChange: onLabelChange, onBlur: onLabelSave, onKeyDown: onLabelKeyDown, className: 'edge-label-input', rows: Math.max(2, edgeLabel.split('\n').length) })
+                            ) : 
+                            (label || edgeLabel) && React.createElement('div', { style: labelStyle, className: 'nodrag nopan', onDoubleClick: onEdgeDoubleClick }, label || edgeLabel)
+                    )
+                );
+            };
+
+            // --- UI Components ---
+            const AppHeader = ({ onUndo, onRedo, canUndo, canRedo, onRunFlow, onShare, onExport, onImport }) => { const undoIcon = React.createElement('svg',{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2"},React.createElement('path',{d:"M21 13H5.83l3.58-3.59L8 8l-6 6 6 6 1.41-1.41L5.83 15H21v-2z"})); const redoIcon = React.createElement('svg',{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2"},React.createElement('path',{d:"M3 13h15.17l-3.58-3.59L16 8l6 6-6 6-1.41-1.41L15.17 15H3v-2z"})); const playIcon = React.createElement('svg',{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2"},React.createElement('path',{d:"M5 3l14 9-14 9V3z"})); return React.createElement('header',{className:'app-header'},React.createElement('div',{className:'header-group'},React.createElement('div',{className:'app-logo'},'XOCONODO')),React.createElement('div',{className:'header-group'},React.createElement('button',{onClick:onUndo,disabled:!canUndo,className:'btn btn-secondary',title:'Deshacer (Ctrl+Z)'},undoIcon),React.createElement('button',{onClick:onRedo,disabled:!canRedo,className:'btn btn-secondary',title:'Rehacer (Ctrl+Y)'},redoIcon),React.createElement('button',{onClick:onRunFlow,className:'btn btn-primary',style:{padding:'8px 16px'}},playIcon,'Ejecutar Flujo')),React.createElement('div',{className:'header-group'},React.createElement('button',{onClick:onShare,className:'btn btn-secondary'},'Compartir'),React.createElement('button',{onClick:onExport,className:'btn btn-secondary'},'Exportar'),React.createElement('button',{onClick:onImport,className:'btn btn-secondary'},'Importar')));};
+            const PalettePanel = ({ onAddNode }) => { const nodeTypes=[{category:'Básicos',nodes:[{type:'customNode',label:'Nodo de Texto'},{type:'imageNode',label:'Nodo de Imagen'},{ type: 'youtubeNode', label: 'Nodo de YouTube' } ]},{category:'Documentación',nodes:[{type:'noteNode',label:'Nota'}]},{category:'Networking',nodes:[{type:'httpRequestNode',label:'HTTP Request'}]},{category:'Visualización',nodes:[{type:'httpRequestViewerNode',label:'HTTP Request Viewer'}]},{category:'Lógica',nodes:[{type:'ifNode',label:'IF'}]},{category:'Notificaciones',nodes:[{type:'smtpEmailNode',label:'Enviar Email (SMTP)'}]},{category:'Procesamiento de Texto',nodes:[{type:'concatenateNode',label:'Concatenar'},{type:'capitalizeNode',label:'Capitalizar'},{type:'uppercaseNode',label:'Mayúsculas'},{type:'lowercaseNode',label:'Minúsculas'},{type:'scriptNode',label:'Script JS'}]},{category:'Datos y Automatización',nodes:[{type:'displayNode',label:'Display & Pass'},{type:'resultNode',label:'Resultado Final'},{type:'downloadNode',label:'Descargar'},{type:'fileAutoRunNode',label:'Auto Run from File'},{type:'webViewerNode', label:'Web Viewer'}]},{category:'Servicios Externos',nodes:[{type:'geminiNode',label:'Tarea Gemini'}]}]; const createIcon = (d) => React.createElement('svg',{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2"},React.createElement('path',{d: d || 'M12 2 L12 22 M2 12 L22 12'})); return React.createElement('aside',{className:'palette-panel'},React.createElement('div',{className:'palette-accordion'},nodeTypes.map(category => React.createElement('details',{key:category.category},React.createElement('summary',null,category.category),React.createElement('div',{className:'palette-content'},category.nodes.map(node => React.createElement('button',{key:node.type,onClick:()=>onAddNode(node.type),className:'palette-button'},createIcon(node.icon),node.label)))))));};
+            const InspectorPanel = ({ selectedElement, canvasSettings, onNodeDataChange, onEdgeDataChange, onCanvasSettingsChange, onDuplicate, onDelete }) => {
+                const renderCanvasInspector = () => { const handleSettingChange = (key, value) => onCanvasSettingsChange({ [key]: value }); const handleExportCanvasConfig = () => { const configStr = JSON.stringify(canvasSettings, null, 2); const blob = new Blob([configStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'xoconodo_canvas_config.json'; a.click(); URL.revokeObjectURL(url); }; const handleImportCanvasConfig = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = event => { try { const config = JSON.parse(event.target.result); if (config.backgroundColor && config.backgroundVariant) { onCanvasSettingsChange(config); window.setToast({message: 'Configuración de vista importada.', type: 'success'}); } else { window.setToast({message: 'Archivo de configuración no válido.', type: 'error'}); } } catch (err) { window.setToast({message: 'Error al leer el archivo.', type: 'error'}); } }; reader.readAsText(file); } }; input.click(); }; return React.createElement(React.Fragment, null, React.createElement('div', { className: 'inspector-header' }, React.createElement('h2', { className: 'inspector-title' }, 'Lienzo')), React.createElement('p', { className: 'inspector-placeholder' }, 'Personaliza la apariencia del área de trabajo o selecciona un elemento para editarlo.'), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Apariencia del Lienzo'), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Fondo'), React.createElement('input', { type: 'color', className: 'form-input', value: canvasSettings.backgroundColor, onChange: e => handleSettingChange('backgroundColor', e.target.value) })), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Rejilla'), React.createElement('div', { className: 'button-group' }, React.createElement('button', { className: `btn btn-secondary ${canvasSettings.backgroundVariant === 'dots' ? 'active' : ''}`, onClick: () => handleSettingChange('backgroundVariant', 'dots') }, 'Puntos'), React.createElement('button', { className: `btn btn-secondary ${canvasSettings.backgroundVariant === 'lines' ? 'active' : ''}`, onClick: () => handleSettingChange('backgroundVariant', 'lines') }, 'Líneas'))), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Color Rejilla'), React.createElement('input', { type: 'color', className: 'form-input', value: canvasSettings.gridColor, onChange: e => handleSettingChange('gridColor', e.target.value) })), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Distancia'), React.createElement('input', { type: 'range', min: '10', max: '100', step: '1', className: 'form-input', value: canvasSettings.gridGap, onChange: e => handleSettingChange('gridGap', Number(e.target.value)) }), React.createElement('span', { className: 'range-value' }, canvasSettings.gridGap)), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Grosor'), React.createElement('input', { type: 'range', min: '1', max: '10', step: '0.5', className: 'form-input', value: canvasSettings.gridSize, onChange: e => handleSettingChange('gridSize', Number(e.target.value)) }), React.createElement('span', { className: 'range-value' }, canvasSettings.gridSize))), React.createElement('div', {className: 'inspector-group', style: { display: 'flex', gap: '8px' }}, React.createElement('button', { onClick: handleExportCanvasConfig, className: 'btn btn-secondary', style:{flex: 1} }, 'Exportar Vista'), React.createElement('button', { onClick: handleImportCanvasConfig, className: 'btn btn-secondary', style:{flex: 1} }, 'Importar Vista')));};
+                if (!selectedElement) { return React.createElement('aside', { className: 'inspector-panel' }, renderCanvasInspector()); }
+                const handleNodeChange = (key, value) => { onNodeDataChange(selectedElement.id, { [key]: value }); };
+                const handleEdgeChange = (key, value) => { onEdgeDataChange(selectedElement.id, { [key]: value }); };
+                const renderNodeInspector = () => {
+                    const node = selectedElement.data;
+                    const inspectorTitle = node.isCompressed ? node.compressedTitle : node.label || 'Nota';
+                    const alignLeftIcon = React.createElement('svg',{viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2"}, React.createElement('path', {d:"M3 4h18M3 9h12M3 14h18M3 19h12"}));
+                    const alignCenterIcon = React.createElement('svg',{viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2"}, React.createElement('path', {d:"M3 4h18M6 9h12M3 14h18M6 19h12"}));
+                    const alignRightIcon = React.createElement('svg',{viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2"}, React.createElement('path', {d:"M3 4h18M9 9h12M3 14h18M9 19h12"}));
+                    const compressibleNodeTypes = ['customNode', 'imageNode', 'youtubeNode', 'webViewerNode', 'scriptNode', 'concatenateNode', 'resultNode', 'displayNode', 'downloadNode', 'capitalizeNode', 'uppercaseNode', 'lowercaseNode', 'geminiNode', 'fileAutoRunNode', 'httpRequestNode'];
+                    const renderCompactMode = () => (
+                        React.createElement('div', {className: 'inspector-group'},
+                            React.createElement('div', {className: 'inspector-control-row'}, React.createElement('label', null, 'Modo Comprimido'), React.createElement('label', {className: 'switch'}, React.createElement('input', {type:'checkbox', checked: node.isCompressed, onChange: e=>handleNodeChange('isCompressed', e.target.checked)}), React.createElement('span', {className: 'slider'}))),
+                            node.isCompressed && React.createElement('div', {style:{marginTop:'10px'}}, React.createElement('label', {htmlFor: 'compressedTitle'}, 'Título Comprimido'), React.createElement('input', {id: 'compressedTitle', className:'form-input', value:node.compressedTitle, onChange:e=>handleNodeChange('compressedTitle', e.target.value)}))
+                        )
+                    );
+                    const renderSpecificContent = () => {
+                        if (node.isCompressed) return null;
+                        switch (selectedElement.type) {
+                            case 'customNode': return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'nodeLabel'},'Texto (Contenido Real)'),React.createElement('textarea',{id:'nodeLabel',className:'form-textarea',value:node.label,onChange:e=>handleNodeChange('label',e.target.value)}));
+                            case 'noteNode': return React.createElement(React.Fragment, null, React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label', htmlFor: 'noteContent' }, 'Contenido (Markdown)'), React.createElement('textarea', { id: 'noteContent', className: 'form-textarea', style: { height: '200px' }, value: node.content, onChange: e => handleNodeChange('content', e.target.value) })), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Apariencia'), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', null, 'Color de Fondo'), React.createElement('input', { type: 'color', className: 'form-input', value: node.backgroundColor, onChange: e => handleNodeChange('backgroundColor', e.target.value) })), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', { htmlFor: 'nodeWidth' }, 'Ancho (px)'), React.createElement('input', { id: 'nodeWidth', type: 'number', className: 'form-input', style: { width: '80px' }, value: node.width, onChange: e => window.onNodeDataChange(selectedElement.id, { width: parseInt(e.target.value, 10) || 0 }, { width: parseInt(e.target.value, 10) || 0 }) })), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', { htmlFor: 'nodeHeight' }, 'Alto (px)'), React.createElement('input', { id: 'nodeHeight', type: 'number', className: 'form-input', style: { width: '80px' }, value: node.height, onChange: e => window.onNodeDataChange(selectedElement.id, { height: parseInt(e.target.value, 10) || 0 }, { height: parseInt(e.target.value, 10) || 0 }) }))));
+                            case 'httpRequestNode': return React.createElement(React.Fragment, null, React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label', htmlFor: 'httpMethod' }, 'Método'), React.createElement('select', { id: 'httpMethod', className: 'form-select', value: node.method, onChange: e => handleNodeChange('method', e.target.value) }, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => React.createElement('option', { key: m, value: m }, m))), React.createElement('label', { className: 'inspector-group-label', htmlFor: 'httpUrl', style: { marginTop: '12px' } }, 'URL'), React.createElement('input', { id: 'httpUrl', className: 'form-input', value: node.url, onChange: e => handleNodeChange('url', e.target.value) })), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label', htmlFor: 'httpHeaders' }, 'Cabeceras (JSON)'), React.createElement('textarea', { id: 'httpHeaders', className: 'form-textarea', rows: '4', value: node.headers, onChange: e => handleNodeChange('headers', e.target.value) })), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label', htmlFor: 'httpBody' }, 'Cuerpo (Body)'), React.createElement('textarea', { id: 'httpBody', className: 'form-textarea', rows: '4', value: node.body, onChange: e => handleNodeChange('body', e.target.value), disabled: node.method === 'GET' })), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Formato de Respuesta'), React.createElement('select', { className: 'form-select', value: node.responseFormat, onChange: e => handleNodeChange('responseFormat', e.target.value) }, React.createElement('option', { value: 'json' }, 'JSON'), React.createElement('option', { value: 'text' }, 'Texto Plano'))));
+                            case 'httpRequestViewerNode': return React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Opciones de Visualización'), React.createElement('div', { className: 'checkbox-row' }, React.createElement('input', { type: 'checkbox', id: 'showHeader', checked: node.showHeader, onChange: e => handleNodeChange('showHeader', e.target.checked) }), React.createElement('label', { htmlFor: 'showHeader' }, 'Mostrar cabecera')), React.createElement('div', { className: 'checkbox-row' }, React.createElement('input', { type: 'checkbox', id: 'showHeaders', checked: node.showHeaders, onChange: e => handleNodeChange('showHeaders', e.target.checked) }), React.createElement('label', { htmlFor: 'showHeaders' }, 'Mostrar headers')), React.createElement('div', { className: 'inspector-control-row', style: { marginTop: '10px' } }, React.createElement('label', { htmlFor: 'bodyFormat' }, 'Formato del body'), React.createElement('select', { id: 'bodyFormat', className: 'form-select', style: { width: 'auto' }, value: node.bodyFormat, onChange: e => handleNodeChange('bodyFormat', e.target.value) }, React.createElement('option', { value: 'json' }, 'JSON'), React.createElement('option', { value: 'text' }, 'Texto'))));
+                            case 'ifNode': return React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Condición'), React.createElement('label', { htmlFor: 'ifField' }, 'Campo a evaluar'), React.createElement('input', { id: 'ifField', className: 'form-input', placeholder: 'ej. body.temperature', value: node.field, onChange: e => handleNodeChange('field', e.target.value) }), React.createElement('label', { htmlFor: 'ifOperator', style: { marginTop: '12px' } }, 'Operador'), React.createElement('select', { id: 'ifOperator', className: 'form-select', value: node.operator, onChange: e => handleNodeChange('operator', e.target.value) }, ['==', '!=', '>', '>=', '<', '<=', 'contiene', 'noContiene', 'estáVacio', 'noEstáVacio'].map(op => React.createElement('option', { key: op, value: op }, op))), React.createElement('label', { htmlFor: 'ifValue', style: { marginTop: '12px' } }, 'Valor de comparación'), React.createElement('input', { id: 'ifValue', className: 'form-input', value: node.value, onChange: e => handleNodeChange('value', e.target.value) }));
+                            case 'smtpEmailNode': return React.createElement(React.Fragment, null, React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Servidor SMTP'), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', { htmlFor: 'smtpHost' }, 'Host'), React.createElement('input', { id: 'smtpHost', className: 'form-input', style: { width: '150px' }, value: node.host, onChange: e => handleNodeChange('host', e.target.value) })), React.createElement('div', { className: 'inspector-control-row' }, React.createElement('label', { htmlFor: 'smtpPort' }, 'Puerto'), React.createElement('input', { id: 'smtpPort', type: 'number', className: 'form-input', style: { width: '80px' }, value: node.port, onChange: e => handleNodeChange('port', e.target.value) })), React.createElement('div', { className: 'checkbox-row' }, React.createElement('input', { type: 'checkbox', id: 'smtpSecure', checked: node.secure, onChange: e => handleNodeChange('secure', e.target.checked) }), React.createElement('label', { htmlFor: 'smtpSecure' }, 'Usar conexión segura (TLS)'))), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Autenticación'), React.createElement('label', { htmlFor: 'smtpUser' }, 'Usuario'), React.createElement('input', { id: 'smtpUser', className: 'form-input', value: node.user, onChange: e => handleNodeChange('user', e.target.value) }), React.createElement('label', { htmlFor: 'smtpPass', style: { marginTop: '8px' } }, 'Contraseña de Aplicación'), React.createElement('input', { id: 'smtpPass', type: 'password', className: 'form-input', value: node.pass, onChange: e => handleNodeChange('pass', e.target.value) })), React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label' }, 'Contenido del Email'), React.createElement('label', { htmlFor: 'smtpFrom' }, 'De'), React.createElement('input', { id: 'smtpFrom', className: 'form-input', value: node.from, onChange: e => handleNodeChange('from', e.target.value) }), React.createElement('label', { htmlFor: 'smtpTo', style: { marginTop: '8px' } }, 'Para'), React.createElement('input', { id: 'smtpTo', className: 'form-input', value: node.to, onChange: e => handleNodeChange('to', e.target.value) }), React.createElement('label', { htmlFor: 'smtpSubject', style: { marginTop: '8px' } }, 'Asunto'), React.createElement('input', { id: 'smtpSubject', className: 'form-input', value: node.subject, onChange: e => handleNodeChange('subject', e.target.value) }), React.createElement('label', { htmlFor: 'smtpBody', style: { marginTop: '8px' } }, 'Cuerpo'), React.createElement('textarea', { id: 'smtpBody', className: 'form-textarea', rows: 5, value: node.body, onChange: e => handleNodeChange('body', e.target.value) })));
+                            case 'scriptNode': return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'scriptContent'},'Código JavaScript'),React.createElement('textarea',{id:'scriptContent',className:'form-textarea',style:{height:'200px'},value:node.script || '',onChange:e=>handleNodeChange('script',e.target.value)}));
+                            case 'geminiNode': return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'geminiApiKey'},'API Key de Gemini'),React.createElement('input',{id:'geminiApiKey',type:'password',className:'form-input',value:node.apiKey,onChange:e=>handleNodeChange('apiKey',e.target.value),placeholder:'Introduce tu API key'}));
+                            case 'concatenateNode': return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'separator'},'Separador'),React.createElement('input',{id:'separator',className:'form-input',value:node.separator,onChange:e=>handleNodeChange('separator',e.target.value)}));
+                            case 'downloadNode': return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'filename'},'Nombre del archivo'),React.createElement('input',{id:'filename',className:'form-input',value:node.filename,onChange:e=>handleNodeChange('filename',e.target.value)}));
+                            case 'youtubeNode': return React.createElement('div', { className: 'inspector-group' }, React.createElement('label', { className: 'inspector-group-label', htmlFor: 'youtubeVideoId' }, 'ID del Video de YouTube'), React.createElement('input', { id: 'youtubeVideoId', className: 'form-input', value: node.videoId, onChange: e => handleNodeChange('videoId', e.target.value) }), React.createElement('div', {className: 'inspector-control-row', style:{marginTop: '16px'}}, React.createElement('label', {htmlFor: 'nodeWidth'}, 'Ancho (px)'), React.createElement('input', {id: 'nodeWidth', type: 'number', className: 'form-input', style: {width: '80px'}, value:node.width, onChange:e=>window.onNodeDataChange(selectedElement.id, {width: parseInt(e.target.value, 10)||0}, {width: parseInt(e.target.value, 10)||0}) })), React.createElement('div', {className: 'inspector-control-row'}, React.createElement('label', {htmlFor: 'nodeHeight'}, 'Alto (px)'), React.createElement('input', {id: 'nodeHeight', type: 'number', className: 'form-input', style: {width: '80px'}, value:node.height, onChange:e=>window.onNodeDataChange(selectedElement.id, {height: parseInt(e.target.value, 10)||0}, {height: parseInt(e.target.value, 10)||0}) })), React.createElement('p', { style: { fontSize: '12px', color: '#4a5568', fontStyle: 'italic', marginTop: '12px', border: '1px solid #e2e8f0', padding: '8px', borderRadius: '4px' } }, 'Aviso: Para evitar errores, use videos sin anuncios y pruebe en un navegador en modo incógnito.'));
+                            case 'webViewerNode': const handleSandboxChange = (option, isChecked) => { const newOptions = { ...node.sandboxOptions, [option]: isChecked }; handleNodeChange('sandboxOptions', newOptions); }; return React.createElement(React.Fragment, null, React.createElement('div',{className:'inspector-group'}, React.createElement('label',{className:'inspector-group-label'},'Dimensiones'), React.createElement('div', {className: 'inspector-control-row'}, React.createElement('label', {htmlFor: 'nodeWidth'}, 'Ancho (px)'), React.createElement('input', {id: 'nodeWidth', type: 'number', className: 'form-input', style: {width: '80px'}, value:node.width, onChange:e=>window.onNodeDataChange(selectedElement.id, {width: parseInt(e.target.value, 10)||0}, {width: parseInt(e.target.value, 10)||0}) })), React.createElement('div', {className: 'inspector-control-row'}, React.createElement('label', {htmlFor: 'nodeHeight'}, 'Alto (px)'), React.createElement('input', {id: 'nodeHeight', type: 'number', className: 'form-input', style: {width: '80px'}, value:node.height, onChange:e=>window.onNodeDataChange(selectedElement.id, {height: parseInt(e.target.value, 10)||0}, {height: parseInt(e.target.value, 10)||0}) }))), React.createElement('div',{className:'inspector-group'}, React.createElement('label',{className:'inspector-group-label'},'Fuente del Código'), React.createElement('div', {className: 'button-group'}, React.createElement('button', {className:`btn btn-secondary ${node.sourceMode === 'input' ? 'active':''}`, onClick:()=>handleNodeChange('sourceMode', 'input')}, 'Entrada Conectada'), React.createElement('button', {className:`btn btn-secondary ${node.sourceMode === 'local' ? 'active':''}`, onClick:()=>handleNodeChange('sourceMode', 'local')}, 'Código Local'))), node.sourceMode === 'local' && React.createElement('div',{className:'inspector-group'}, React.createElement('label',{className:'inspector-group-label', htmlFor: 'localCode'}, 'Código HTML Local'), React.createElement('textarea', {id: 'localCode', className:'form-textarea', style: {height: '150px'}, value: node.localCode, onChange:e=>handleNodeChange('localCode', e.target.value)})), React.createElement('div',{className:'inspector-group'}, React.createElement('label',{className:'inspector-group-label'},'Permisos (Sandbox)'), Object.keys(node.sandboxOptions || {}).map(opt => React.createElement('div', {key: opt, className: 'checkbox-row'}, React.createElement('input', {type: 'checkbox', id: `sb-${opt}`, checked: node.sandboxOptions[opt], onChange: e => handleSandboxChange(opt, e.target.checked)}), React.createElement('label', {htmlFor: `sb-${opt}`}, opt.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))))));
+                            default: return null;
+                        }
+                    };
+                    const renderAppearance = () => {
+                        if (node.isCompressed || selectedElement.type === 'noteNode') return null;
+                        if (selectedElement.type === 'customNode' || selectedElement.type === 'imageNode') {
+                            const colors = ['#ffffff', '#f0f0f0', '#d1ecff', '#d6f5d6', '#fff8c5', '#ffe6e6']; const borderColors = ['#FF0066', '#333333', '#3b82f6', '#16a34a', '#f59e0b', '#ef4444'];
+                            return React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label'},'Apariencia'),
+                                selectedElement.type === 'customNode' && React.createElement(React.Fragment, null,
+                                    React.createElement('div',{className:'inspector-control-row'},React.createElement('label',null,'Alineación'),React.createElement('div',{className:'button-group'},React.createElement('button',{className:`btn btn-secondary ${node.textAlign==='left'?'active':''}`,onClick:()=>handleNodeChange('textAlign','left')},alignLeftIcon),React.createElement('button',{className:`btn btn-secondary ${!node.textAlign || node.textAlign==='center'?'active':''}`,onClick:()=>handleNodeChange('textAlign','center')},alignCenterIcon),React.createElement('button',{className:`btn btn-secondary ${node.textAlign==='right'?'active':''}`,onClick:()=>handleNodeChange('textAlign','right')},alignRightIcon))),
+                                    React.createElement('div',{className:'inspector-control-row'},React.createElement('label',null,'Forma'),React.createElement('div',{className:'button-group'},['rect','circle','diamond'].map(shape=>React.createElement('button',{key:shape,className:`btn btn-secondary ${node.shape===shape?'active':''}`,onClick:()=>handleNodeChange('shape',shape)},shape)))),
+                                    React.createElement('div',{className:'inspector-control-row'},React.createElement('label',null,'Relleno')),React.createElement('div',{className:'color-palette'},colors.map(c=>React.createElement('div',{key:c,className:`color-swatch ${node.color===c?'selected':''}`,style:{backgroundColor:c},onClick:()=>handleNodeChange('color',c)})))
+                                ),
+                                React.createElement('div',{className:'inspector-control-row'},React.createElement('label',null,'Grosor Borde'),React.createElement('input',{type:'range',min:'0',max:'10',className:'form-input',value:node.borderWidth,onChange:e=>handleNodeChange('borderWidth',Number(e.target.value))}),React.createElement('span',{className:'range-value'},node.borderWidth)),
+                                selectedElement.type === 'customNode' && React.createElement('div', {className: 'inspector-control-row'},React.createElement('label', null, 'Estilo Borde'),React.createElement('select',{className: 'form-select',value:node.borderStyle,onChange:e=>handleNodeChange('borderStyle',e.target.value)},['solid','dashed','dotted','none'].map(s=>React.createElement('option',{key:s,value:s},s)))),
+                                React.createElement('div',{style:{height:'10px'}}),React.createElement('div',{className:'inspector-control-row'},React.createElement('label',null,'Borde')),React.createElement('div',{className:'color-palette'},borderColors.map(bc=>React.createElement('div',{key:bc,className:`color-swatch ${node.borderColor===bc?'selected':''}`,style:{backgroundColor:bc},onClick:()=>handleNodeChange('borderColor',bc)})))
+                            );
+                        }
+                        return null;
+                    };
+                    return React.createElement(React.Fragment, null,
+                        React.createElement('div',{className:'inspector-header'}, React.createElement('h2',{className:'inspector-title'}, (inspectorTitle).substring(0, 30) + ((inspectorTitle || '').length > 30 ? '...' : '')), React.createElement('p',{className:'inspector-subtitle'},`Tipo: ${selectedElement.type}`)),
+                        compressibleNodeTypes.includes(selectedElement.type) && renderCompactMode(),
+                        renderSpecificContent(),
+                        renderAppearance(),
+                        React.createElement('div',{className:'inspector-group',style:{display:'flex',gap:'8px'}},React.createElement('button',{onClick:onDuplicate,className:'btn btn-secondary',style:{flex:1}},'Duplicar'),React.createElement('button',{onClick:onDelete,className:'btn btn-secondary',style:{flex:1,color:'#dc3545'}},'Eliminar'))
+                    );
+                };
+                const renderEdgeInspector = () => { const edge = selectedElement; return React.createElement(React.Fragment, null,React.createElement('div',{className:'inspector-header'},React.createElement('h2',{className:'inspector-title'},'Conexión'),React.createElement('p',{className:'inspector-subtitle'},`ID: ${edge.id}`)),React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label',htmlFor:'edgeLabel'},'Etiqueta'),React.createElement('input',{id:'edgeLabel',className:'form-input',value:edge.label||'',onChange:e=>handleEdgeChange('label',e.target.value)})),React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label'},'Estilo de Línea'),React.createElement('select',{className:'form-select',value:edge.data?.lineStyle||'solid',onChange:e=>handleEdgeChange('lineStyle',e.target.value)},['solid','dashed','animated-dashed'].map(s=>React.createElement('option',{key:s,value:s},s)))),React.createElement('div',{className:'inspector-group'},React.createElement('label',{className:'inspector-group-label'},'Color'),React.createElement('input',{type:'color',className:'form-input',value:edge.style?.stroke||'#FF0066',onChange:e=>handleEdgeChange('color',e.target.value)})),React.createElement('div',{className:'inspector-group'},React.createElement('button',{onClick:onDelete,className:'btn btn-secondary',style:{width:'100%',color:'#dc3545'}},'Eliminar')));};
+                return React.createElement('aside', { className: 'inspector-panel' }, selectedElement.isNode ? renderNodeInspector() : renderEdgeInspector());
+            };
+            const Toast = ({ message, type, onDismiss }) => { React.useEffect(() => { const timer = setTimeout(onDismiss, 3000); return () => clearTimeout(timer); }, [onDismiss]); return React.createElement('div', { className: `toast show ${type}` }, message); };
+
+            // --- Main App Component ---
+            const FlowApp = () => {
+                const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+                const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+                const { getViewport, setViewport, getNodes, getEdges, deleteElements } = useReactFlow();
+                const [selectedElement, setSelectedElement] = React.useState(null);
+                const [toast, setToast] = React.useState(null);
+                window.setToast = setToast;
+                const mainContentRef = React.useRef(null);
+                const clipboardRef = React.useRef(null);
+                const [backgroundVariant, setBackgroundVariant] = React.useState('dots');
+                const [backgroundColor, setBackgroundColor] = React.useState('#f8fafc');
+                const [gridColor, setGridColor] = React.useState('#d1d5db');
+                const [gridGap, setGridGap] = React.useState(20);
+                const [gridSize, setGridSize] = React.useState(1);
+                React.useEffect(() => { if (mainContentRef.current) mainContentRef.current.style.backgroundColor = backgroundColor; }, [backgroundColor]);
+                const MAX_HISTORY_LENGTH = 50;
+                const historyRef = React.useRef([{ nodes: [...initialNodes], edges: [...initialEdges], viewport: {...initialViewport} }]);
+                const historyIndexRef = React.useRef(0);
+                const [canUndo, setCanUndo] = React.useState(false);
+                const [canRedo, setCanRedo] = React.useState(false);
+                const updateUndoRedoState = React.useCallback(() => { setCanUndo(historyIndexRef.current > 0); setCanRedo(historyIndexRef.current < historyRef.current.length - 1); }, []);
+                window.recordAction = React.useCallback(() => { setTimeout(() => { const currentNodes = getNodes(); const currentEdges = getEdges(); const currentViewport = getViewport(); const newHistoryStack = historyRef.current.slice(0, historyIndexRef.current + 1); newHistoryStack.push({ nodes: currentNodes, edges: currentEdges, viewport: currentViewport }); historyRef.current = newHistoryStack.length > MAX_HISTORY_LENGTH ? newHistoryStack.slice(-MAX_HISTORY_LENGTH) : newHistoryStack; historyIndexRef.current = historyRef.current.length - 1; updateUndoRedoState(); }, 50); }, [getNodes, getEdges, getViewport, updateUndoRedoState]);
+                const handleUndo = React.useCallback(() => { if (historyIndexRef.current > 0) { historyIndexRef.current--; const state = historyRef.current[historyIndexRef.current]; setNodes(state.nodes); setEdges(state.edges); setViewport(state.viewport, {duration: 100}); updateUndoRedoState(); } }, [setNodes, setEdges, setViewport, updateUndoRedoState]);
+                const handleRedo = React.useCallback(() => { if (historyIndexRef.current < historyRef.current.length - 1) { historyIndexRef.current++; const state = historyRef.current[historyIndexRef.current]; setNodes(state.nodes); setEdges(state.edges); setViewport(state.viewport, {duration: 100}); updateUndoRedoState(); } }, [setNodes, setEdges, setViewport, updateUndoRedoState]);
+                const onSelectionChange = React.useCallback(({ nodes: selNodes, edges: selEdges }) => {
+                    if (selNodes.length === 1 && selEdges.length === 0) { setSelectedElement({ id: selNodes[0].id, type: selNodes[0].type, data: selNodes[0].data, isNode: true }); }
+                    else if (selEdges.length === 1 && selNodes.length === 0) { setSelectedElement({ id: selEdges[0].id, data: selEdges[0].data, label: selEdges[0].label, style: selEdges[0].style, isEdge: true }); }
+                    else { setSelectedElement(null); }
+                }, []);
+                window.onNodeDataChange = React.useCallback((nodeId, newData, newStyle) => {
+                    setNodes(nds => nds.map(n => {
+                        if (n.id === nodeId) {
+                            if ((n.type === 'customNode' || n.type === 'scriptNode') && 'label' in newData) newData.outputValue = newData.label;
+                            const updatedNode = { ...n, data: { ...n.data, ...newData } };
+                            if (newStyle) updatedNode.style = { ...n.style, ...newStyle };
+                            return updatedNode;
+                        }
+                        return n;
+                    }));
+                    if (selectedElement && selectedElement.id === nodeId) { setSelectedElement(prev => ({ ...prev, data: { ...prev.data, ...newData } })); }
+                }, [setNodes, selectedElement]);
+                const onNodeDataChangeWithHistory = (nodeId, newData) => { window.onNodeDataChange(nodeId, newData); window.recordAction(); };
+                const getEdgeStyleObject = (lineStyleType, strokeColor) => { const baseStyle = { stroke: strokeColor || '#FF0066', strokeWidth: 2 }; if (lineStyleType === 'dashed') return { ...baseStyle, strokeDasharray: '5 5' }; if (lineStyleType === 'animated-dashed') return { ...baseStyle, strokeDasharray: '5 5', animation: 'dashdraw 0.7s linear infinite' }; return baseStyle; };
+                const onEdgeDataChangeWithHistory = React.useCallback((edgeId, newData) => {
+                    setEdges(eds => eds.map(e => {
+                        if (e.id !== edgeId) return e; let updatedEdge = { ...e };
+                        if ('label' in newData) updatedEdge.label = newData.label;
+                        if ('lineStyle' in newData) { updatedEdge.data = { ...e.data, lineStyle: newData.lineStyle }; updatedEdge.style = getEdgeStyleObject(newData.lineStyle, e.style?.stroke); }
+                        if ('color' in newData) { updatedEdge.style = { ...e.style, stroke: newData.color }; updatedEdge.markerEnd = { ...e.markerEnd, color: newData.color }; }
+                        return updatedEdge;
+                    }));
+                    window.recordAction();
+                }, [setEdges]);
+                const handleCanvasSettingsChange = React.useCallback((settings) => {
+                    if (settings.backgroundVariant !== undefined) setBackgroundVariant(settings.backgroundVariant);
+                    if (settings.backgroundColor !== undefined) setBackgroundColor(settings.backgroundColor);
+                    if (settings.gridColor !== undefined) setGridColor(settings.gridColor);
+                    if (settings.gridGap !== undefined) setGridGap(settings.gridGap);
+                    if (settings.gridSize !== undefined) setGridSize(settings.gridSize);
+                }, []);
+                const getNewNodePosition = React.useCallback(() => { const { x: viewX, y: viewY, zoom } = getViewport(); const pane = mainContentRef.current?.getBoundingClientRect(); return { x: (pane.width / 2 - viewX) / zoom, y: (pane.height / 3 - viewY) / zoom }; }, [getViewport]);
+                const addNode = React.useCallback((nodeType) => { nodeIdCounter++; const pos = getNewNodePosition(); const nodeCreators = { customNode: createNewNode, imageNode: createNewImageNode, youtubeNode: createNewYoutubeNode, noteNode: createNewNoteNode, httpRequestNode: createNewHttpRequestNode, httpRequestViewerNode: createNewHttpRequestViewerNode, ifNode: createIfNode, smtpEmailNode: createSmtpEmailNode, webViewerNode: createWebViewerNode, concatenateNode: createConcatenateNode, resultNode: createResultNode, displayNode: createDisplayNode, downloadNode: createDownloadNode, capitalizeNode: createCapitalizeNode, uppercaseNode: createUppercaseNode, lowercaseNode: createLowercaseNode, geminiNode: createGeminiNode, scriptNode: createScriptNode, fileAutoRunNode: createFileAutoRunNode }; if (nodeType === 'imageNode') { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = e => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = event => { const img = new Image(); img.onload = () => { setNodes(nds => nds.concat(createNewImageNode(nodeIdCounter, pos, { src: event.target.result, width: 200, height: (img.naturalHeight/img.naturalWidth)*200, originalWidth: img.naturalWidth, originalHeight: img.naturalHeight }))); }; img.src = event.target.result; }; reader.readAsDataURL(file); }}; input.click(); } else { const createFn = nodeCreators[nodeType] || createNewNode; setNodes(nds => nds.concat(createFn(nodeIdCounter, pos))); } window.recordAction(); }, [getNewNodePosition, setNodes]);
+                const onConnect = React.useCallback((params) => { setEdges((eds) => { const newEdge = { ...params, type: 'customEdge' }; const sourceNode = getNodes().find(n => n.id === params.source); if (sourceNode && sourceNode.type === 'ifNode') { if (params.sourceHandle === 'true-output') { newEdge.style = { stroke: '#22c55e', strokeWidth: 2 }; newEdge.markerEnd = { type: MarkerType.ArrowClosed, color: '#22c55e' }; } else if (params.sourceHandle === 'false-output') { newEdge.style = { stroke: '#ef4444', strokeWidth: 2 }; newEdge.markerEnd = { type: MarkerType.ArrowClosed, color: '#ef4444' }; } } else { newEdge.style = { stroke: '#FF0066', strokeWidth: 2 }; newEdge.markerEnd = { type: MarkerType.ArrowClosed, color: '#FF0066' }; } return addEdge(newEdge, eds); }); window.recordAction(); }, [setEdges, getNodes]);
+                const importHandler = React.useCallback(() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = event => { try { const flow = JSON.parse(event.target.result); setNodes(flow.nodes || []); setEdges(flow.edges || []); setViewport(flow.viewport || initialViewport); window.setToast({message: 'Flujo importado con éxito.', type: 'success'}); } catch (err) { window.setToast({message: 'Error al importar el archivo.', type: 'error'}); } }; reader.readAsText(file); } }; input.click(); }, [setNodes, setEdges, setViewport]);
+                const exportHandler = React.useCallback(() => { const flow = { nodes: getNodes(), edges: getEdges(), viewport: getViewport() }; const dataStr = JSON.stringify(flow, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'xoconodo_flow.json'; a.click(); URL.revokeObjectURL(url); }, [getNodes, getEdges, getViewport]);
+                const shareHandler = React.useCallback(() => { try { const flow = { nodes: getNodes(), edges: getEdges(), viewport: getViewport() }; const encodedFlow = encodeURIComponent(btoa(JSON.stringify(flow))); const shareUrl = `${window.location.origin}${window.location.pathname}?flow=${encodedFlow}`; navigator.clipboard.writeText(shareUrl).then(() => window.setToast({message: 'Enlace para compartir copiado.', type: 'success'})); } catch(e) { window.setToast({message: 'Error al generar el enlace.', type: 'error'}) } }, [getNodes, getEdges, getViewport]);
+                const deleteSelected = () => { const elementsToDelete = { nodes: getNodes().filter(n => n.selected), edges: getEdges().filter(e => e.selected) }; if (elementsToDelete.nodes.length > 0 || elementsToDelete.edges.length > 0) { deleteElements(elementsToDelete); window.recordAction(); }};
+                const duplicateSelected = () => { const nodeToDup = getNodes().find(n => n.selected); if (!nodeToDup) return; nodeIdCounter++; const newNode = { ...JSON.parse(JSON.stringify(nodeToDup)), id: nodeIdCounter.toString(), position: { x: nodeToDup.position.x + 20, y: nodeToDup.position.y + 20 }, selected: false }; setNodes(nds => nds.concat(newNode)); window.recordAction(); };
+                
+                const handleRunFlow = React.useCallback(async (showAlert = true) => {
+                    const currentNodes = getNodes();
+                    const currentEdges = getEdges();
+                    const inDegree = new Map(currentNodes.map(node => [node.id, 0]));
+                    const adjList = new Map(currentNodes.map(node => [node.id, []]));
+                    currentEdges.forEach(edge => {
+                        adjList.get(edge.source)?.push(edge.target);
+                        inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+                    });
+                    const queue = currentNodes.filter(node => inDegree.get(node.id) === 0).map(node => node.id);
+                    const sortedNodeIds = [];
+                    while (queue.length > 0) {
+                        const nodeId = queue.shift();
+                        sortedNodeIds.push(nodeId);
+                        (adjList.get(nodeId) || []).forEach(neighborId => {
+                            inDegree.set(neighborId, inDegree.get(neighborId) - 1);
+                            if (inDegree.get(neighborId) === 0) queue.push(neighborId);
+                        });
+                    }
+
+                    if (sortedNodeIds.length !== currentNodes.length) {
+                        if (showAlert) setToast({message: "Error: Se detectó un ciclo en el flujo.", type: "error"});
+                        return;
+                    }
+
+                    for (const nodeId of sortedNodeIds) {
+                        const nodeToProcess = getNodes().find(n => n.id === nodeId);
+                        if (!nodeToProcess) continue;
+                        
+                        if (nodeToProcess.type === 'geminiNode') {
+                            const { data } = nodeToProcess;
+                            if (!data.apiKey || !data.inputValue) {
+                                window.onNodeDataChange(nodeId, { status: 'Omitido' });
+                                continue;
+                            }
+                            window.onNodeDataChange(nodeId, { status: 'Procesando...', outputValue: '' });
+                            const API_KEY = data.apiKey;
+                            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+                            try {
+                                const response = await fetch(API_URL, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ contents: [{ parts: [{ text: data.inputValue }] }] })
+                                });
+                                if (!response.ok) {
+                                    const errorData = await response.json();
+                                    throw new Error(errorData.error?.message || 'Error en la respuesta de la API.');
+                                }
+                                const responseData = await response.json();
+                                let resultText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || 'No se recibió una respuesta válida.';
+                                resultText = resultText.replace(/\$\s*\\boxed{([^}]*)}\s*\$/g, '$1').replace(/\\\[|\\\]|\$|\*|`/g, '').trim();
+                                window.onNodeDataChange(nodeId, { status: 'Success', outputValue: resultText });
+                            } catch (error) {
+                                console.error(`Fallo en Tarea Gemini para nodo ${nodeId}:`, error);
+                                window.onNodeDataChange(nodeId, { status: `Error: ${error.message}`, outputValue: '' });
+                            }
+                        }
+                    }
+                    if (showAlert) setToast({message: "Ejecución de flujo completada.", type: 'success'});
+                    window.recordAction();
+                }, [getNodes, getEdges]);
+
+
+                window.handleRunFlow = () => handleRunFlow(false);
+                const getNestedValue = (obj, path) => { if (!path || typeof obj !== 'object' || obj === null) return undefined; return path.split('.').reduce((acc, part) => acc && acc[part] !== undefined ? acc[part] : undefined, obj); }
+                React.useEffect(() => { setNodes((currentNodes) => { let hasChanges = false; const nodeMap = new Map(currentNodes.map(n => [n.id, n])); const updatedNodes = currentNodes.map(node => { let updatedData = { ...node.data }; let dataChanged = false; const inputEdge = edges.find(e => e.target === node.id && e.targetHandle === 'input'); if (inputEdge) { const sourceNode = nodeMap.get(inputEdge.source); if (sourceNode) { let newInputValue; if (sourceNode.type === 'ifNode') { const sourceHandleId = inputEdge.sourceHandle; const conditionIsTrue = sourceNode.data.conditionResult; if ((sourceHandleId === 'true-output' && conditionIsTrue === true) || (sourceHandleId === 'false-output' && conditionIsTrue === false)) { newInputValue = sourceNode.data.inputValue; } else { newInputValue = undefined; } } else { newInputValue = sourceNode.data.outputValue; } if (updatedData.inputValue !== newInputValue) { updatedData.inputValue = newInputValue; if (['displayNode', 'httpRequestViewerNode', 'emailNode', 'smtpEmailNode'].includes(node.type)) { updatedData.outputValue = newInputValue; } if(node.type === 'httpRequestNode') { updatedData.body = typeof newInputValue === 'object' ? JSON.stringify(newInputValue, null, 2) : String(newInputValue); } dataChanged = true; } } } else if (['ifNode','emailNode','smtpEmailNode'].includes(node.type) && updatedData.inputValue !== null){ updatedData.inputValue = null; dataChanged = true; } if (node.type === 'ifNode') { const actualValue = getNestedValue(updatedData.inputValue, updatedData.field); const comparisonValue = updatedData.value; let result = false; if (updatedData.inputValue !== null) { switch (updatedData.operator) { case '==': result = actualValue == comparisonValue; break; case '!=': result = actualValue != comparisonValue; break; case '>': result = Number(actualValue) > Number(comparisonValue); break; case '>=': result = Number(actualValue) >= Number(comparisonValue); break; case '<': result = Number(actualValue) < Number(comparisonValue); break; case '<=': result = Number(actualValue) <= Number(comparisonValue); break; case 'contiene': result = String(actualValue).includes(comparisonValue); break; case 'noContiene': result = !String(actualValue).includes(comparisonValue); break; case 'estáVacio': result = actualValue == null || actualValue === ''; break; case 'noEstáVacio': result = actualValue != null && actualValue !== ''; break; default: result = false; } } if (updatedData.conditionResult !== result) { updatedData.conditionResult = result; dataChanged = true; } } if (node.type === 'concatenateNode') { const incomingEdges = edges.filter(e => e.target === node.id); const newInputs = {}; let inputsChanged = false; for (let i = 0; i < (node.data.numInputs || 2); i++) { const handleId = `input_${i}`; const edge = incomingEdges.find(e => e.targetHandle === handleId); const value = edge ? (nodeMap.get(edge.source)?.data.outputValue ?? '') : ''; if(node.data.inputs[handleId] !== value) inputsChanged = true; newInputs[handleId] = value; } if (inputsChanged || node.data.separator !== updatedData.separator) { updatedData.outputValue = Object.values(newInputs).join(updatedData.separator || ''); updatedData.inputs = newInputs; dataChanged = true; } } else if (node.type === 'capitalizeNode') { const newOutput = (updatedData.inputValue || '').charAt(0).toUpperCase() + (updatedData.inputValue || '').slice(1).toLowerCase(); if (updatedData.outputValue !== newOutput) { updatedData.outputValue = newOutput; dataChanged = true; } } else if (node.type === 'uppercaseNode') { const newOutput = String(updatedData.inputValue || '').toUpperCase(); if (updatedData.outputValue !== newOutput) { updatedData.outputValue = newOutput; dataChanged = true; } } else if (node.type === 'lowercaseNode') { const newOutput = String(updatedData.inputValue || '').toLowerCase(); if (updatedData.outputValue !== newOutput) { updatedData.outputValue = newOutput; dataChanged = true; } } else if (node.type === 'scriptNode') { let newOutput; try { const scriptContent = typeof updatedData.script === 'string' ? updatedData.script : ''; newOutput = new Function('input', scriptContent)(updatedData.inputValue); } catch (e) { newOutput = `Error: ${e.message}`; } if (JSON.stringify(updatedData.outputValue) !== JSON.stringify(newOutput)) { updatedData.outputValue = newOutput; dataChanged = true; } } if (dataChanged) hasChanges = true; return dataChanged ? { ...node, data: updatedData } : node; }); return hasChanges ? updatedNodes : currentNodes; }); }, [nodes, edges, setNodes]);
+                
+                React.useEffect(() => {
+                    const countdownTimer = setInterval(() => {
+                        setNodes(currentNodes => {
+                            let hasChanges = false;
+                            const updatedNodes = currentNodes.map(node => {
+                                if (node.type === 'fileAutoRunNode' && node.data.isRunning) {
+                                    const newCountdown = node.data.countdown > 1 ? node.data.countdown - 1 : node.data.interval;
+                                    if (node.data.countdown !== newCountdown) {
+                                        hasChanges = true;
+                                        return { ...node, data: { ...node.data, countdown: newCountdown } };
+                                    }
+                                }
+                                return node;
+                            });
+                            return hasChanges ? updatedNodes : currentNodes;
+                        });
+                    }, 1000);
+                    return () => clearInterval(countdownTimer);
+                }, [setNodes]);
+
+                React.useEffect(() => {
+                    const handleKeyDown = (event) => {
+                        const activeElement = document.activeElement; if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) return;
+                        if (event.key === 'Delete' || event.key === 'Backspace') deleteSelected();
+                        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+                            const selectedNodes = getNodes().filter(n => n.selected);
+                            if (selectedNodes.length > 0) {
+                                const selectedNodeIds = new Set(selectedNodes.map(n => n.id)); const relevantEdges = getEdges().filter(e => selectedNodeIds.has(e.source) && selectedNodeIds.has(e.target));
+                                clipboardRef.current = { nodes: JSON.parse(JSON.stringify(selectedNodes)), edges: JSON.parse(JSON.stringify(relevantEdges)) };
+                                setToast({message: `${selectedNodes.length} nodo(s) copiados.`, type: 'success'});
+                            }
+                        }
+                        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+                            if (clipboardRef.current && clipboardRef.current.nodes.length > 0) {
+                                const { nodes: copiedNodes, edges: copiedEdges } = clipboardRef.current;
+                                const idMapping = new Map();
+                                const newNodes = copiedNodes.map(node => { const oldId = node.id; nodeIdCounter++; const newId = nodeIdCounter.toString(); idMapping.set(oldId, newId); return { ...node, id: newId, selected: false, position: { x: node.position.x + 20, y: node.position.y + 20 } }; });
+                                const newEdges = copiedEdges.map(edge => { nodeIdCounter++; return { ...edge, id: `e-${nodeIdCounter}`, source: idMapping.get(edge.source), target: idMapping.get(edge.target) }; });
+                                setNodes(nds => [...nds.map(n => ({...n, selected: false})), ...newNodes]); setEdges(eds => [...eds, ...newEdges]); window.recordAction();
+                            }
+                        }
+                    };
+                    document.addEventListener('keydown', handleKeyDown); return () => document.removeEventListener('keydown', handleKeyDown);
+                }, [getNodes, getEdges, setNodes, setEdges, deleteElements]);
+                const memoizedNodeTypes = React.useMemo(() => ({ customNode: CustomNode, imageNode: ImageNode, youtubeNode: YoutubeNodeComponent, noteNode: NoteNodeComponent, httpRequestNode: HttpRequestNodeComponent, httpRequestViewerNode: HttpRequestViewerNodeComponent, ifNode: IfNodeComponent, smtpEmailNode: SmtpEmailNodeComponent, webViewerNode: WebViewerNodeComponent, concatenateNode: ConcatenateNodeComponent, resultNode: ResultNodeComponent, displayNode: DisplayNodeComponent, downloadNode: DownloadNodeComponent, capitalizeNode: CapitalizeNodeComponent, uppercaseNode: UppercaseNodeComponent, lowercaseNode: LowercaseNodeComponent, geminiNode: GeminiNodeComponent, scriptNode: ScriptNodeComponent, fileAutoRunNode: FileAutoRunNodeComponent }), []);
+                const memoizedEdgeTypes = React.useMemo(() => ({ customEdge: CustomEdge }), []);
+
+                return React.createElement(React.Fragment, null,
+                    React.createElement(AppHeader, { onUndo: handleUndo, onRedo: handleRedo, canUndo: canUndo, canRedo: canRedo, onRunFlow: handleRunFlow, onShare: shareHandler, onExport: exportHandler, onImport: importHandler }),
+                    React.createElement('div', { className: 'app-body' },
+                        React.createElement(PalettePanel, { onAddNode: addNode }),
+                        React.createElement('main', { className: 'main-content-wrapper', ref: mainContentRef },
+                            React.createElement(ReactFlowComponent, {
+                                nodes, edges, onNodesChange, onEdgesChange, onConnect, onSelectionChange,
+                                nodeTypes: memoizedNodeTypes, 
+                                edgeTypes: memoizedEdgeTypes,
+                                fitView: true, deleteKeyCode: null,
+                            },
+                                React.createElement(Background, { variant: backgroundVariant, color: gridColor, gap: gridGap, size: gridSize }),
+                                React.createElement(MiniMap, { position: 'bottom-right' }),
+                                React.createElement(Controls)
+                            )
+                        ),
+                        React.createElement(InspectorPanel, {
+                            selectedElement,
+                            canvasSettings: { backgroundColor, backgroundVariant, gridColor, gridGap, gridSize },
+                            onNodeDataChange: onNodeDataChangeWithHistory,
+                            onEdgeDataChange: onEdgeDataChangeWithHistory,
+                            onCanvasSettingsChange: handleCanvasSettingsChange,
+                            onDuplicate: duplicateSelected,
+                            onDelete: deleteSelected
+                        })
+                    ),
+                    toast && React.createElement('div', { className: 'toast-container' },
+                        React.createElement(Toast, { message: toast.message, type: toast.type, onDismiss: () => setToast(null) })
+                    )
+                );
+            };
+
+            const App = () => React.createElement('div', { id: 'app-container' },
+                React.createElement(ReactFlowProvider, null, React.createElement(FlowApp))
+            );
+            ReactDOM.render(React.createElement(App), document.getElementById('app-container'));
+        });
+    </script>
+</body>
+</html>
